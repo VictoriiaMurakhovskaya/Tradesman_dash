@@ -9,6 +9,7 @@ def neighbour(cities, start, visited, distances):
     df2 = distances.loc[(distances.city2 == start) & (
         distances.city1.isin([item for item in cities.city if item not in visited]))].copy()
     res = pd.Series(data=list(df1.dist) + list(df2.dist), index=list(df1.city2) + list(df2.city1))
+    print(res)
     return (res.idxmin())
 
 
@@ -27,7 +28,9 @@ def get_distancies(cities):
 def find_path(cities, start, finish):
     sequence = []
     df_dist = get_distancies(cities)
+    current = start
     while len([start] + sequence + [finish]) < len(cities):
-        sequence.append(neighbour(cities, start, [start] + sequence + [finish], df_dist))
+        current = neighbour(cities, current, [start] + sequence + [finish], df_dist)
+        sequence.append(current)
 
     return [start] + sequence + [finish]
