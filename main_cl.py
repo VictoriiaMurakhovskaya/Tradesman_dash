@@ -15,6 +15,7 @@ df['city'] = df.index
 drawing = False
 counter = 0
 path = []
+zoom = 4
 
 
 def navBar():
@@ -31,44 +32,62 @@ def navBar():
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.config.suppress_callback_exceptions = True
 app.layout = html.Div([dcc.Location(id='loc', refresh=True),
+                       dcc.Interval(id='run-timer', interval=1000, disabled=True),
                        navBar(),
-                       html.Div(id='page-content', children=[]),
-                       dcc.Interval(id='run-timer', interval=1000)])
+                       html.Div(id='page-content', children=[dashboard(zoom=zoom)])
+                       ])
 
 
 @app.callback(Output('page-content', 'children'),
               [Input('loc', 'pathname')])
 def return_layout(pathname):
     if pathname == '/':
-        return dashboard(df)
+        return dashboard(zoom=zoom)
     else:
         return html.P('Error ' + str(pathname))
 
 
 @app.callback(
-    Output('board', 'children'),
-    [Input('start-id', 'value'),
+    [Output('board', 'children'),
+     Output('run-timer', 'disabled')],
+    [Input('reset', 'n_clicks'),
      Input('launch', 'n_clicks'),
-     Input('reset', 'n_clicks'),
-     Input('run-timer', 'n_intervals')],
-    State('cities-list', 'value')
+     Input('run-timer', 'n_intervals'),
+     Input('start-id', 'value')],
+    [State('cities-list', 'value'),
+     State('main-graph', 'relayoutData')]
 )
-def board_update(value1, n1, n2, timer, cities):
-    global df, path, counter, drawing
+def board_update(n1, n2, timer, value1, cities, relayoutData):
+    global df, path, counter, drawing, zoom
+
+    if relayoutData:
+        try:
+            zoom = relayoutData['mapbox.zoom']
+        except:
+            pass
+
     ctx = dash.callback_context.triggered[0]['prop_id'].split('.')[0]
-    if ctx == 'launch':
+
+    if (ctx == 'launch') & (n2 is not None):
         path = find_path(cities=df.loc[df.city.isin(cities)], start=value1)
         drawing = True
-        return board(df, value1)
+        return board(st=value1, selected_cities=cities, zoom=zoom), False
+
     elif ctx == 'run-timer':
         if drawing:
             if counter < len(path):
                 counter += 1
-        return board(df, value1, path=path[:counter])
-    else:
+                return board(st=value1, selected_cities=cities, path=path[:counter], zoom=zoom), False
+            else:
+                return board(st=value1, selected_cities=cities, path=path, zoom=zoom), True
+
+    elif ((ctx == 'reset') & (n1 is not None)) | (ctx == 'start-id'):
         counter = 0
         drawing = False
-        return board(df, value1)
+        return board(st=value1, selected_cities=cities, zoom=zoom), True
+
+    else:
+        return board(selected_cities=cities, zoom=zoom), True
 
 
 @app.callback(
@@ -85,4 +104,3 @@ def change_list(value, current):
 
 if __name__ == '__main__':
     app.run_server(debug=True)
-
