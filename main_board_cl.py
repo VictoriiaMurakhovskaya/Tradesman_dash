@@ -2,10 +2,15 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
+import pandas as pd
 
-start, finish, fig = None, None, None
+start, fig = None, None
 
 map_token = 'pk.eyJ1IjoiZG11cmFraG92c2t5aSIsImEiOiJja29jeG9wbDQwdjh1Mm9wZ3Bvbm1ndmYzIn0.qeqHa9f5UB3iY0_vdhiXgA'
+
+df = pd.read_excel("gps.xlsx", index_col=0)
+df = df.sort_values(by='city', ascending=True)
+df['city'] = df.index
 
 
 def dashboard(df):
@@ -24,19 +29,17 @@ def dashboard(df):
 
 
 def controls(cities):
-    start_drop = [{'label': c, 'value': c} for c in cities]
-    finish_drop = [{'label': c, 'value': c} for c in cities]
+    start_drop = [{'label': c + '\n', 'value': c} for c in cities]
     main_controls = dbc.Card([
-        html.Label(id='start-label', children=['Start city']),
+        html.Label(id='list-label', children=['City list'], style={'font-weight': 'bold'}),
+        dcc.Checklist(id='cities-list',
+                      options=start_drop, value=[c for c in cities],
+                      labelStyle=dict(display='block'),
+                      style={'height': '12rem', 'overflow-y': 'scroll', 'margin-bottom': '15px'}),
+        html.Label(id='start-label', children=['Home city'], style={'font-weight': 'bold'}),
         dcc.Dropdown(id='start-id',
-                     options=start_drop,
-                     value=start,
-                     multi=False,
-                     style={'margin-bottom': '10px'}),
-        html.Label(id='finish-label', children=['Finish city']),
-        dcc.Dropdown(id='finish-id',
-                     options=finish_drop,
-                     value=finish,
+                     options=[],
+                     value=None,
                      multi=False,
                      style={'margin-bottom': '10px'}),
         html.Div([
@@ -45,32 +48,26 @@ def controls(cities):
             dbc.Button('Reset', id='reset', color='primary', className='mr-1',
                        style={'width': '90px'})
         ], style={'margin': 'auto'})
-    ], style={'width': '18rem', 'height': '16rem', "margin-top": "30px"}, body=True)
+    ], style={'width': '18rem', 'height': '23rem', "margin-top": "30px"}, body=True)
     return main_controls
 
 
-def board(cities, st=None, fin=None, path=None):
-    global fig, start, finish
+def board(cities, st=None, path=None):
+    global fig, start
 
     if not st:
         st = start
     else:
         start = st
 
-    if not fin:
-        fin = finish
-    else:
-        finish = fin
-
     start_df = cities.loc[cities.city == st].copy()
-    finish_df = cities.loc[cities.city == fin].copy()
 
-    return dcc.Graph(id='main-graph', figure=fig_map(cities, start_df, finish_df, path), style={"margin-top": "30px"})
+    return dcc.Graph(id='main-graph', figure=fig_map(cities, start_df, path), style={"margin-top": "30px"})
 
 
-def fig_map(cities, start_df, finish_df, path=None):
+def fig_map(cities, start_df, path=None):
     if path:
-        fig = base_map(cities, start_df, finish_df)
+        fig = base_map(cities, start_df)
         connect = cities.loc[cities.city.isin(path)]
         connect = connect.reindex(index=path)
         fig.add_trace(go.Scattermapbox(
@@ -86,10 +83,10 @@ def fig_map(cities, start_df, finish_df, path=None):
         ))
         return fig
     else:
-        return base_map(cities, start_df, finish_df)
+        return base_map(cities, start_df)
 
 
-def base_map(cities, start_df, finish_df):
+def base_map(cities, start_df):
     fig = go.Figure()
     fig.add_trace(go.Scattermapbox(
                                     lat=start_df.lat,
@@ -101,18 +98,6 @@ def base_map(cities, start_df, finish_df):
                                         opacity=0.7
                                     ),
                                     text=start_df.city,
-                                    hoverinfo='text'
-                                    ))
-    fig.add_trace(go.Scattermapbox(
-                                    lat=finish_df.lat,
-                                    lon=finish_df.long,
-                                    mode='markers',
-                                    marker=go.scattermapbox.Marker(
-                                        size=17,
-                                        color='red',
-                                        opacity=0.7
-                                    ),
-                                    text=finish_df.city,
                                     hoverinfo='text'
                                     ))
     fig.add_trace(go.Scattermapbox(
