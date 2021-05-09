@@ -27,10 +27,9 @@ def get_distancies(cities):
 def find_path(cities, start):
     sequence = []
     df_dist = get_distancies(cities)
-    finish = neighbour(cities, start, [], df_dist)
     current = start
-    while len([start] + sequence + [finish]) < len(cities):
-        current = neighbour(cities, current, [start] + sequence + [finish], df_dist)
+    while len([start] + sequence) < len(cities):
+        current = neighbour(cities, current, [start] + sequence, df_dist)
         sequence.append(current)
 
-    return [start] + sequence + [finish] + [start]
+    return [start] + sequence + [start]
